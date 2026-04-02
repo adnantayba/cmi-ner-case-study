@@ -24,16 +24,10 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-## Run (CLI)
-
-```bash
-python -m cmi_ner "path\to\your.docx" --pretty
-```
-
 ## Run (API)
 
 ```bash
-uvicorn cmi_ner.api:create_app --factory --reload
+uvicorn src.api:create_app --factory --reload
 ```
 
 Then `POST /ner/docx` with a `.docx` file upload.
