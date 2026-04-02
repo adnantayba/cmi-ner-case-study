@@ -1,2 +1,39 @@
 # cmi-ner-case-study
-Named Entity Recognition tailored for financial documents — from term sheets and swap confirmations to dealer chat logs. Adapts to document structure: no regex, just intelligent parsing, fine-tuned transformers, and LLM-powered RAG. Built as a modular PoC for an augmented document reader.
+
+PoC for **Named Entity Recognition (NER)** tailored for financial documents (term sheets, confirmations, chat logs).
+
+This repo is built step-by-step. **Step 1 (this version)** covers the **DOCX rule-based parser** only.
+
+## Entities (DOCX)
+
+- Counterparty
+- Initial Valuation Date
+- Notional
+- Valuation Date
+- Maturity
+- Underlying
+- Coupon
+- Barrier
+- Calendar
+
+## Setup
+
+```bash
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## Run (CLI)
+
+```bash
+python -m cmi_ner "path\to\your.docx" --pretty
+```
+
+## Run (API)
+
+```bash
+uvicorn cmi_ner.api:create_app --factory --reload
+```
+
+Then `POST /ner/docx` with a `.docx` file upload.
