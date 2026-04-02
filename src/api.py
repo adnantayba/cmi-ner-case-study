@@ -1,9 +1,8 @@
-from __future__ import annotations
-
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from .docx_parser import extract_entities_from_docx_bytes
+from .ner_pdf import extract_entities_from_pdf_bytes
 
 
 def create_app() -> FastAPI:
@@ -13,13 +12,39 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.post("/ner/docx")
-    async def ner_docx(file: UploadFile = File(...)) -> JSONResponse:
-        if not file.filename or not file.filename.lower().endswith(".docx"):
-            raise HTTPException(status_code=400, detail="Please upload a .docx file.")
+    @app.post("/ner")
+    async def ner(file: UploadFile = File(...)) -> JSONResponse:
+        filename = (file.filename or "").strip().lower()
+        if not filename:
+            raise HTTPException(
+                status_code=400,
+                detail="A file with a supported extension (.docx or .pdf) is required.",
+            )
+
         data = await file.read()
-        result = extract_entities_from_docx_bytes(data)
-        return JSONResponse(result.to_json_dict())
+
+        if filename.endswith(".docx"):
+            result = extract_entities_from_docx_bytes(data)
+            return JSONResponse(result.to_json_dict())
+
+        if filename.endswith(".pdf"):
+            try:
+                result = extract_entities_from_pdf_bytes(data)
+            except ValueError as e:
+                msg = str(e)
+                if "TOGETHER_API_KEY" in msg:
+                    raise HTTPException(status_code=503, detail=msg) from e
+                raise HTTPException(status_code=400, detail=msg) from e
+            except Exception as e:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"NER request failed: {e}",
+                ) from e
+            return JSONResponse(result.to_json_dict())
+
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Upload a .docx or .pdf file.",
+        )
 
     return app
-
