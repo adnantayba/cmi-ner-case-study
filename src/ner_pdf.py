@@ -1,10 +1,6 @@
-from __future__ import annotations
-
 import io
-import json
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -14,20 +10,19 @@ from agno.models.together import Together
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict
 
+from .constants import (
+    DEFAULT_MAX_CHARS,
+    LLM_MAX_TOKENS,
+    LLM_TEMPERATURE,
+    LLM_TOP_P,
+    NER_PROMPT_TEMPLATE,
+    TOGETHER_MODEL_ID,
+)
 from .entities import FinancialEntities
 
 load_dotenv()
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
-
-TOGETHER_MODEL_ID = "openai/gpt-oss-20b"
-DEFAULT_MAX_CHARS = 4000
-
-NER_PROMPT_TEMPLATE = """Extract financial entities from the following document text.
-Return null for any field not found.
-
-Document:
-{text}"""
 
 
 class PdfExtractionResult(BaseModel):
@@ -70,14 +65,19 @@ def _financial_entities_to_api_entities(fe: FinancialEntities) -> dict[str, str]
     return {k: ("" if v is None else str(v)) for k, v in raw.items()}
 
 
+def financial_entities_to_extraction_result(fe: FinancialEntities) -> PdfExtractionResult:
+    """Shared wrapper for LLM NER responses (documents, chat logs, plain text)."""
+    return PdfExtractionResult(entities=_financial_entities_to_api_entities(fe), evidence={})
+
+
 def _build_agent(api_key: str) -> Agent:
     return Agent(
         model=Together(
             id=TOGETHER_MODEL_ID,
             api_key=api_key,
-            temperature=0.1,
-            max_tokens=500,
-            top_p=0.95,
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+            top_p=LLM_TOP_P,
         ),
         description="Financial document analyzer for entity extraction",
         output_schema=FinancialEntities,
@@ -90,9 +90,7 @@ def extract_entities_from_pdf_bytes(
     *,
     max_chars: int = DEFAULT_MAX_CHARS,
 ) -> PdfExtractionResult:
-    """
-    Run PDF text extraction and Together/Agno NER. Raises ValueError for config/input issues.
-    """
+    """Run PDF text extraction and Together/Agno NER. Raises ValueError for config/input issues."""
     api_key = os.getenv("TOGETHER_API_KEY")
     if not api_key:
         raise ValueError("TOGETHER_API_KEY is not set")
@@ -108,5 +106,4 @@ def extract_entities_from_pdf_bytes(
     if not isinstance(parsed, FinancialEntities):
         raise RuntimeError("Model returned unexpected output type")
 
-    entities = _financial_entities_to_api_entities(parsed)
-    return PdfExtractionResult(entities=entities, evidence={})
+    return financial_entities_to_extraction_result(parsed)

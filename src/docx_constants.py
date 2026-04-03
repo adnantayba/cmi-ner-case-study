@@ -1,7 +1,4 @@
 """Patterns and rule tables for docx entity extraction."""
-
-from __future__ import annotations
-
 from collections.abc import Callable
 
 # --- Value-shape heuristics (regex) ---

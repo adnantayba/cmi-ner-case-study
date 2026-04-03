@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from .docx_parser import extract_entities_from_docx_bytes
+from .ner_chat import extract_entities_from_txt_bytes
 from .ner_pdf import extract_entities_from_pdf_bytes
 
 
@@ -18,7 +19,7 @@ def create_app() -> FastAPI:
         if not filename:
             raise HTTPException(
                 status_code=400,
-                detail="A file with a supported extension (.docx or .pdf) is required.",
+                detail="A file with a supported extension (.docx, .pdf, or .txt) is required.",
             )
 
         data = await file.read()
@@ -27,9 +28,12 @@ def create_app() -> FastAPI:
             result = extract_entities_from_docx_bytes(data)
             return JSONResponse(result.to_json_dict())
 
-        if filename.endswith(".pdf"):
+        if filename.endswith(".pdf") or filename.endswith(".txt"):
             try:
-                result = extract_entities_from_pdf_bytes(data)
+                if filename.endswith(".pdf"):
+                    result = extract_entities_from_pdf_bytes(data)
+                else:
+                    result = extract_entities_from_txt_bytes(data)
             except ValueError as e:
                 msg = str(e)
                 if "TOGETHER_API_KEY" in msg:
@@ -44,7 +48,7 @@ def create_app() -> FastAPI:
 
         raise HTTPException(
             status_code=400,
-            detail="Unsupported file type. Upload a .docx or .pdf file.",
+            detail="Unsupported file type. Upload a .docx, .pdf, or .txt file.",
         )
 
     return app
